@@ -1,0 +1,99 @@
+Criar um app em java script , html e CSS com as seguinte funciionalidades:
+
+O app deve fazer a Leitura do QrCode que sera apresentado pelo cliente, ao ler o QR CODE o codigo extraido deve ser enviado como client ID dentro de um Json de uma transação pré definida, a cada transação o app deve enviar o Json no fomrado abaixo:
+
+{
+"actionType": "4",
+"terminalID": "{{terminalID}}",
+"acquirerID": "{{acquirerID}}",
+"created": "{{timestamp}}",
+"clientID": "{{clientID}}",
+"rrn": "{{rrn_timestamp}}",
+"totalAmount": "100",
+"additionalData": {
+"products": [
+{
+"name": "Cafe Pontua",
+"productId": "1000100",
+"pCost": "100",
+"price": "100",
+"quantity": "1000",
+"markupDiscount": "0",
+"tax": "20",
+"barcode": "1000100",
+"group": "4b",
+"flag": ""
+}
+],
+"totalPcost": "100"
+},
+"currency": "986",
+"authCode": "NUB445"
+}
+
+Este json ao ser enviado sera consideraedo com sucesso a transmissao que tiver uma resposta neste formato:
+{
+"rrn": "2025102811163584",
+"resultCode": "00",
+"additionalData": {
+"products": [
+{
+"productId": "1000100",
+"bonus": "0"
+}
+],
+"totalPcost": "10",
+"bonus": "10",
+"balance": "20"
+}
+}
+
+Para cada transacao deve ser enviado um token pedindo autorizacao no formato:
+
+{
+"terminalID": "{{terminalID}}",
+"acquirerID": "{{acquirerID}}",
+"language": "en",
+"password": "{{aid_pass}}"
+}
+
+A resposta do Token sera neste formato:
+{
+"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZXJtaW5hbElEIjoiYmFydG8wMiIsImFjcXVpcmVySUQiOiJDb2xpYnJpIiwibGFuZ3VhZ2UiOiJlbiIsImlhdCI6MTc2MTY2MDg4MywiZXhwIjoxNzYxNjk2ODgzfQ.PTBM2hNrYCgD3QoX9KsXSizi9piBN12KdiV4aJbRI7A"
+}
+
+Além do Qr Code o operador pode digitar o código ID ou o telefone do cliente. Para o caso de digitar manualmente o codigo do ID do cliente, o app deve converter o número digitado em 0e+sh1 e para o telefone 0f+sh1. Isto faz parte do ClientID
+
+observacao: para o json os segue regras de preenchimento:
+
+{
+"actionType": "4", <<----fixo para acumular pontos.
+"terminalID": "{{terminalID}}", <-Pegar da Tela de configuracao.
+"acquirerID": "{{acquirerID}}", <-Pegar da Tela de configuracao.
+"created": "{{timestamp}}", <-- (Operation creation time in the format: YYYYMMDDHHmmssSSS)
+"clientID": "{{clientID}}", < QR code, ID ou telefone.
+"rrn": "{{rrn_timestamp}}", <--YYYYMMDDHHmmssSS
+"totalAmount": "100", <----fixo para acumular pontos.
+"additionalData": {
+"products": [
+{
+"name": "Cafe Pontua", <----fixo para acumular pontos.
+"productId": "1000100", <----fixo para acumular pontos.
+"pCost": "100", <----fixo para acumular pontos.
+"price": "100", <----fixo para acumular pontos.
+"quantity": "1000", <----fixo para acumular pontos.
+"markupDiscount": "0", <----fixo para acumular pontos.
+"tax": "20", <----fixo para acumular pontos.
+"barcode": "1000100", <----fixo para acumular pontos.
+"group": "4b",<----fixo para acumular pontos.
+"flag": "" <----fixo para acumular pontos.
+}
+],
+"totalPcost": "100" <----fixo para acumular pontos.
+},
+"currency": "986", <----fixo para acumular pontos.
+"authCode": "NUB445" <----fixo para acumular pontos.
+}
+
+Precicsa que seja criado uma tela de configuracao para os seguintes campos que serao usados no envio dos jsons:
+host
