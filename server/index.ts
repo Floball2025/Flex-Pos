@@ -89,15 +89,15 @@ app.use("/api/admin", adminRoutes);
     serveStatic(app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "8080", 10);
 
   // ✅ Host dinâmico:
   // - No Windows/local: usa 127.0.0.1 (IPv4 e sem ENOTSUP)
   // - Em produção: se HOST não for setado, o provedor já expõe corretamente
-  const host = process.env.HOST || "127.0.0.1";
+  const host = "0.0.0.0";
 
   // ✅ listen simples (SEM reusePort)
   server.listen(port, host, () => {
-    log(`serving on port ${host}:${port}`);
-  });
+  log(`serving on http://${host}:${port}`);
+});
 })();
