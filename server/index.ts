@@ -92,7 +92,7 @@ app.use("/api/admin", adminRoutes);
   const port = Number(process.env.PORT || 8080);
 
 server.listen(port, () => {
-  log(`serving on port ${port}`);
+  log(`Server listening on port ${port}`);
 });
 
 })();
