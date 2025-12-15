@@ -73,26 +73,32 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    console.log("🚀 Starting server...");
+    console.log("PORT:", process.env.PORT);
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    console.log("DATABASE_URL exists?", !!process.env.DATABASE_URL);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const server = await registerRoutes(app);
+    console.log("✅ Routes registered");
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // ✅ Em produção (Cloud Run), nunca subir Vite
+    if (process.env.NODE_ENV === "development") {
+      await setupVite(app, server);
+      console.log("✅ Vite dev middleware enabled");
+    } else {
+      serveStatic(app);
+      console.log("✅ Serving static files");
+    }
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    const port = Number(process.env.PORT || 8080);
+
+    server.listen(port, () => {
+      console.log(`✅ Server listening on port ${port}`);
+    });
+  } catch (err) {
+    console.error("🔥 FATAL STARTUP ERROR");
+    console.error(err);
+    process.exit(1);
   }
-
-  const port = Number(process.env.PORT || 8080);
-
-server.listen(port, () => {
-  log(`Server listening on port ${port}`);
-});
-
 })();
