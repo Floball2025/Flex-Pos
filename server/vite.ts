@@ -1,9 +1,9 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import type { Server } from "http";
 import { nanoid } from "nanoid";
 import { fileURLToPath } from "url";
-import type { Server } from "http";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +19,7 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-// ✅ DEV only (carrega Vite dinamicamente, então em produção não precisa ter "vite" instalado)
+// ✅ DEV ONLY: importa "vite" e "vite.config" dinamicamente
 export async function setupVite(app: Express, server: Server) {
   const viteMod = await import("vite");
   const { default: viteConfig } = await import("../vite.config");
@@ -63,7 +63,6 @@ export async function setupVite(app: Express, server: Server) {
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      // evita depender do vite.ssrFixStacktrace se houver erro fora de contexto
       try {
         (vite as any).ssrFixStacktrace?.(e as Error);
       } catch {}
@@ -72,13 +71,19 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-// ✅ PROD (não importa "vite" em lugar nenhum)
+// ✅ PROD: NÃO importa "vite"
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  // Quando roda em produção (dist), normalmente existe dist/public ao lado do dist/index.js
+  const candidates = [
+    path.resolve(__dirname, "public"),              // /workspace/dist/public
+    path.resolve(__dirname, "..", "dist", "public") // fallback
+  ];
 
-  if (!fs.existsSync(distPath)) {
+  const distPath = candidates.find((p) => fs.existsSync(p));
+
+  if (!distPath) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+      `Could not find the build directory. Tried:\n- ${candidates.join("\n- ")}\nMake sure to run: npm run build`
     );
   }
 

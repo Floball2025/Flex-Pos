@@ -13,12 +13,11 @@ declare module "http" {
   }
 }
 
-// ✅ CORS (necessário para front na Vercel depois)
+// ✅ CORS (necessário para front depois)
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      // depois você adiciona aqui o domínio da Vercel:
       // "https://SEU-FRONT.vercel.app",
       // "https://app.SEUESTABELECIMENTO.com.br",
     ],
@@ -35,7 +34,7 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false }));
 
-// Logger simples (não depende do ./vite)
+// Logger simples (não depende do vite)
 function logLine(msg: string) {
   console.log(msg);
 }
@@ -64,10 +63,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Register auth routes
+// Rotas
 app.use("/api/auth", authRoutes);
-
-// Register admin routes
 app.use("/api/admin", adminRoutes);
 
 (async () => {
@@ -80,8 +77,11 @@ app.use("/api/admin", adminRoutes);
     const server = await registerRoutes(app);
     console.log("✅ Routes registered");
 
-    // ✅ Vite só em DEV (import dinâmico para não quebrar produção)
-    if (process.env.NODE_ENV === "development") {
+    const isDev = process.env.NODE_ENV === "development";
+
+    // ✅ Import dinâmico do módulo vite helper:
+    // - Em produção só usa serveStatic (não precisa do pacote "vite")
+    if (isDev) {
       const { setupVite } = await import("./vite");
       await setupVite(app, server);
       console.log("✅ Vite dev middleware enabled");
@@ -93,8 +93,7 @@ app.use("/api/admin", adminRoutes);
 
     const port = Number(process.env.PORT || 8080);
 
-    // Cloud Run: não precisa host explícito (mas pode colocar "0.0.0.0" se quiser)
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       console.log(`✅ Server listening on port ${port}`);
     });
   } catch (err) {
