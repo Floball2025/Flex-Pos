@@ -1,9 +1,10 @@
 import "dotenv/config";
 import express, { type Request, type Response, type NextFunction } from "express";
+import cors from "cors";
+
 import { registerRoutes } from "./routes";
 import authRoutes from "./auth-routes";
 import adminRoutes from "./admin-routes";
-import cors from "cors";
 
 const app = express();
 
@@ -13,7 +14,6 @@ declare module "http" {
   }
 }
 
-// ✅ CORS (necessário para front depois)
 app.use(
   cors({
     origin: [
@@ -34,20 +34,17 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false }));
 
-// Logger simples (não depende do vite)
-function logLine(msg: string) {
-  console.log(msg);
-}
-
+// logger simples (não depende de Vite)
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
+
+  const originalJson = res.json.bind(res);
   let capturedJsonResponse: Record<string, any> | undefined;
 
-  const originalResJson = res.json.bind(res);
   res.json = function (bodyJson: any, ...args: any[]) {
     capturedJsonResponse = bodyJson;
-    return originalResJson(bodyJson, ...args);
+    return originalJson(bodyJson, ...args);
   };
 
   res.on("finish", () => {
@@ -56,14 +53,13 @@ app.use((req, res, next) => {
       let line = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) line += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       if (line.length > 180) line = line.slice(0, 179) + "…";
-      logLine(line);
+      console.log(line);
     }
   });
 
   next();
 });
 
-// Rotas
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 
@@ -77,22 +73,19 @@ app.use("/api/admin", adminRoutes);
     const server = await registerRoutes(app);
     console.log("✅ Routes registered");
 
-    const isDev = process.env.NODE_ENV === "development";
-
-    // ✅ Import dinâmico do módulo vite helper:
-    // - Em produção só usa serveStatic (não precisa do pacote "vite")
-    if (isDev) {
-      const { setupVite } = await import("./vite");
+    // ✅ DEV: usa Vite (import dinâmico)
+    if (process.env.NODE_ENV === "development") {
+      const { setupVite } = await import("./dev-vite");
       await setupVite(app, server);
       console.log("✅ Vite dev middleware enabled");
     } else {
-      const { serveStatic } = await import("./vite");
+      // ✅ PROD: serve somente arquivos estáticos já buildados
+      const { serveStatic } = await import("./serve-static");
       serveStatic(app);
       console.log("✅ Serving static files");
     }
 
     const port = Number(process.env.PORT || 8080);
-
     server.listen(port, "0.0.0.0", () => {
       console.log(`✅ Server listening on port ${port}`);
     });
