@@ -1,7 +1,6 @@
 import "dotenv/config";
-import express, { type Request, Response, NextFunction } from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
 import authRoutes from "./auth-routes";
 import adminRoutes from "./admin-routes";
 import cors from "cors";
@@ -36,30 +35,29 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false }));
 
+// Logger simples (não depende do ./vite)
+function logLine(msg: string) {
+  console.log(msg);
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: Record<string, any> | undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
+  const originalResJson = res.json.bind(res);
+  res.json = function (bodyJson: any, ...args: any[]) {
     capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+    return originalResJson(bodyJson, ...args);
   };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      let line = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) line += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      if (line.length > 180) line = line.slice(0, 179) + "…";
+      logLine(line);
     }
   });
 
@@ -82,17 +80,20 @@ app.use("/api/admin", adminRoutes);
     const server = await registerRoutes(app);
     console.log("✅ Routes registered");
 
-    // ✅ Em produção (Cloud Run), nunca subir Vite
+    // ✅ Vite só em DEV (import dinâmico para não quebrar produção)
     if (process.env.NODE_ENV === "development") {
+      const { setupVite } = await import("./vite");
       await setupVite(app, server);
       console.log("✅ Vite dev middleware enabled");
     } else {
+      const { serveStatic } = await import("./vite");
       serveStatic(app);
       console.log("✅ Serving static files");
     }
 
     const port = Number(process.env.PORT || 8080);
 
+    // Cloud Run: não precisa host explícito (mas pode colocar "0.0.0.0" se quiser)
     server.listen(port, () => {
       console.log(`✅ Server listening on port ${port}`);
     });
