@@ -1,22 +1,18 @@
-import express, { type Express } from "express";
-import fs from "fs";
+import type { Express } from "express";
+import express from "express";
 import path from "path";
+import fs from "fs";
 
 export function serveStatic(app: Express) {
-  // 🔥 path absoluto e seguro no Cloud Run
-  const distPath = path.resolve(process.cwd(), "dist", "public");
-
-  console.log("📦 Serving static files from:", distPath);
+  const distPath = path.resolve("dist/public");
 
   if (!fs.existsSync(distPath)) {
-    console.error("❌ Static build not found:", distPath);
-    process.exit(1); // falha explícita e clara
+    throw new Error(`dist/public não encontrado. Rode npm run build`);
   }
 
   app.use(express.static(distPath));
 
-  // SPA fallback
-  app.use("*", (_req, res) => {
+  app.get("*", (_req, res) => {
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
