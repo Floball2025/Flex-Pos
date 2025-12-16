@@ -14,10 +14,10 @@ export async function login(username: string, password: string) {
     .where(eq(users.username, username));
 
   if (!user) return null;
-  if (!user.is_active) return null;
+  if (!user.isActive) return null; // 🔥 camelCase
 
-  // COMPARAÇÃO CORRETA
-  const ok = await bcrypt.compare(password, user.password_hash);
+  // 🔥 CORREÇÃO DEFINITIVA
+  const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return null;
 
   const token = jwt.sign(
@@ -31,13 +31,16 @@ export async function login(username: string, password: string) {
   );
 
   return {
-    token,
-    user: {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-    },
-  };
+  token,
+  user: {
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName,      // ✅ ADICIONADO
+    role: user.role,
+    companyId: user.companyId,    // ✅ ADICIONADO
+  },
+};
+
 }
 
 export async function hashPassword(password: string) {
