@@ -3,17 +3,20 @@ import fs from "fs";
 import path from "path";
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve("dist/public");
+  // 🔥 path absoluto e seguro no Cloud Run
+  const distPath = path.resolve(process.cwd(), "dist", "public");
+
+  console.log("📦 Serving static files from:", distPath);
 
   if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}. Run "npm run build" first.`
-    );
+    console.error("❌ Static build not found:", distPath);
+    process.exit(1); // falha explícita e clara
   }
 
   app.use(express.static(distPath));
 
+  // SPA fallback
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(path.join(distPath, "index.html"));
   });
 }
