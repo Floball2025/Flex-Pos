@@ -135,7 +135,7 @@ export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }), // nullable for global admins
   username: text("username").notNull().unique(), // Username for login (e.g., "lind888")
-  passwordHash: text("password_hash").notNull(),
+  password_Hash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   role: text("role", { enum: ["admin", "user"] }).default("user").notNull(), // admin = global admin, user = company user
   isActive: boolean("is_active").default(true).notNull(),
