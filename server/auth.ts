@@ -24,6 +24,7 @@ export async function login(username: string, password: string) {
   if (!user) return null;
   if (!user.isActive) return null;
 
+  // ✅ Drizzle retorna camelCase -> user.passwordHash
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return null;
 
@@ -39,7 +40,7 @@ export async function login(username: string, password: string) {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      role: user.role,
+      role: user.role as "admin" | "user",
       companyId: user.companyId ?? null,
     } satisfies JwtUser,
   };
@@ -74,38 +75,35 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
-// ✅ MIDDLEWARE: valida JWT e popula req.user
-export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
+// ✅ MIDDLEWARE: valida JWT e popula req.user (com await)
+export async function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
 
   if (!token) return res.status(401).json({ error: "Missing token" });
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; username: string; role: "admin" | "user" };
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      id: string;
+      username: string;
+      role: "admin" | "user";
+    };
 
-    // busca dados completos (fullName/companyId/isActive)
-    db.select()
-      .from(users)
-      .where(eq(users.id, decoded.id))
-      .then(([u]) => {
-        if (!u || !u.isActive) return res.status(401).json({ error: "Not authenticated" });
+    const [u] = await db.select().from(users).where(eq(users.id, decoded.id));
 
-        req.user = {
-          id: u.id,
-          username: u.username,
-          fullName: u.fullName,
-          role: u.role as "admin" | "user",
-          companyId: u.companyId ?? null,
-        };
+    if (!u || !u.isActive) return res.status(401).json({ error: "Not authenticated" });
 
-        next();
-      })
-      .catch((e) => {
-        console.error("Auth lookup error:", e);
-        res.status(500).json({ error: "Auth failed" });
-      });
-  } catch {
+    req.user = {
+      id: u.id,
+      username: u.username,
+      fullName: u.fullName,
+      role: u.role as "admin" | "user",
+      companyId: u.companyId ?? null,
+    };
+
+    return next();
+  } catch (e) {
+    console.error("Auth error:", e);
     return res.status(401).json({ error: "Invalid token" });
   }
 }
@@ -114,5 +112,5 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   if (req.user.role !== "admin") return res.status(403).json({ error: "Admin access required" });
-  next();
+  return next();
 }
