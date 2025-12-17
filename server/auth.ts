@@ -17,14 +17,16 @@ export type JwtUser = {
 
 export type AuthRequest = Request & { user?: JwtUser };
 
-// ✅ LOGIN (retorna exatamente o que o front espera)
+// LOGIN
 export async function login(username: string, password: string) {
   const [user] = await db.select().from(users).where(eq(users.username, username));
 
   if (!user) return null;
   if (!user.isActive) return null;
 
-  // ✅ Drizzle retorna camelCase -> user.passwordHash
+  // ✅ IMPORTANTE: no Drizzle, o campo é passwordHash (camelCase)
+  if (!user.passwordHash) return null;
+
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return null;
 
@@ -40,13 +42,13 @@ export async function login(username: string, password: string) {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      role: user.role as "admin" | "user",
+      role: user.role,
       companyId: user.companyId ?? null,
     } satisfies JwtUser,
   };
 }
 
-// ✅ REGISTER (para o endpoint /register funcionar)
+// REGISTER
 export async function register(
   username: string,
   password: string,
@@ -75,11 +77,10 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
-// ✅ MIDDLEWARE: valida JWT e popula req.user (com await)
+// AUTH MIDDLEWARE
 export async function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-
   if (!token) return res.status(401).json({ error: "Missing token" });
 
   try {
@@ -90,7 +91,6 @@ export async function authenticateToken(req: AuthRequest, res: Response, next: N
     };
 
     const [u] = await db.select().from(users).where(eq(users.id, decoded.id));
-
     if (!u || !u.isActive) return res.status(401).json({ error: "Not authenticated" });
 
     req.user = {
@@ -101,16 +101,14 @@ export async function authenticateToken(req: AuthRequest, res: Response, next: N
       companyId: u.companyId ?? null,
     };
 
-    return next();
+    next();
   } catch (e) {
-    console.error("Auth error:", e);
     return res.status(401).json({ error: "Invalid token" });
   }
 }
 
-// ✅ MIDDLEWARE: exige admin
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   if (req.user.role !== "admin") return res.status(403).json({ error: "Admin access required" });
-  return next();
+  next();
 }
