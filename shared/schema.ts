@@ -14,7 +14,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
 // ============================================================================
-// COMPANIES TABLE - Empresas do sistema multi-tenant
+// COMPANIES
 // ============================================================================
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -33,7 +33,7 @@ export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Company = typeof companies.$inferSelect;
 
 // ============================================================================
-// COMPANY BRANDING TABLE
+// COMPANY BRANDING
 // ============================================================================
 export const companyBranding = pgTable(
   "company_branding",
@@ -42,9 +42,11 @@ export const companyBranding = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
+
     logoUrl: text("logo_url"),
     primaryColor: text("primary_color").default("#3B82F6"),
     secondaryColor: text("secondary_color").default("#1E40AF"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -64,15 +66,17 @@ export type InsertCompanyBranding = z.infer<typeof insertCompanyBrandingSchema>;
 export type CompanyBranding = typeof companyBranding.$inferSelect;
 
 // ============================================================================
-// TERMINALS TABLE
+// TERMINALS
 // ============================================================================
 export const terminals = pgTable("terminals", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id")
     .notNull()
     .references(() => companies.id, { onDelete: "cascade" }),
+
   terminalId: text("terminal_id").notNull().unique(),
   name: text("name").notNull(),
+
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -87,7 +91,7 @@ export type InsertTerminal = z.infer<typeof insertTerminalSchema>;
 export type Terminal = typeof terminals.$inferSelect;
 
 // ============================================================================
-// COMPANY CONFIGS TABLE
+// COMPANY CONFIGS
 // ============================================================================
 export const companyConfigs = pgTable("company_configs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -95,12 +99,14 @@ export const companyConfigs = pgTable("company_configs", {
     .notNull()
     .references(() => companies.id, { onDelete: "cascade" })
     .unique(),
+
   host: text("host").notNull(),
   aidPass: text("aid_pass").notNull(),
   acquirerId: text("acquirer_id").notNull(),
   transactionEndpoint: text("transaction_endpoint").notNull(),
   tokenEndpoint: text("token_endpoint").notNull(),
   useFixedAmount: boolean("use_fixed_amount").default(false).notNull(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -114,19 +120,21 @@ export type InsertCompanyConfig = z.infer<typeof insertCompanyConfigSchema>;
 export type CompanyConfig = typeof companyConfigs.$inferSelect;
 
 // ============================================================================
-// USERS TABLE
+// USERS
 // ============================================================================
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
-  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }), // nullable for global admins
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+
   username: text("username").notNull().unique(),
 
-  // ✅ TS camelCase / DB snake_case
+  // ✅ TS: passwordHash / DB: password_hash
   passwordHash: text("password_hash").notNull(),
 
   fullName: text("full_name").notNull(),
   role: text("role", { enum: ["admin", "user"] }).default("user").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -140,7 +148,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // ============================================================================
-// CUSTOMERS TABLE
+// CUSTOMERS
 // ============================================================================
 export const customers = pgTable(
   "customers",
@@ -149,12 +157,15 @@ export const customers = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
+
     clientId: text("client_id"),
     phoneNumber: text("phone_number"),
     phoneNumberHash: text("phone_number_hash"),
+
     clientCode: text("client_code").notNull(),
     lastBalance: decimal("last_balance", { precision: 10, scale: 2 }).default("0.00"),
     lastTransactionAt: timestamp("last_transaction_at"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -175,28 +186,33 @@ export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
 
 // ============================================================================
-// TRANSACTIONS TABLE
+// TRANSACTIONS
 // ============================================================================
 export const transactions = pgTable("transactions", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id")
     .notNull()
     .references(() => companies.id, { onDelete: "cascade" }),
+
   terminalId: uuid("terminal_id")
     .notNull()
     .references(() => terminals.id, { onDelete: "cascade" }),
+
   customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
 
   rrn: text("rrn").notNull(),
   actionType: text("action_type").notNull(),
   resultCode: text("result_code").notNull(),
+
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   bonus: decimal("bonus", { precision: 10, scale: 2 }),
   balance: decimal("balance", { precision: 10, scale: 2 }),
+
   errorMessage: text("error_message"),
   requestPayload: text("request_payload"),
   responsePayload: text("response_payload"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -208,18 +224,20 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 
 // ============================================================================
-// TRANSACTION LINE ITEMS TABLE
+// TRANSACTION LINE ITEMS
 // ============================================================================
 export const transactionLineItems = pgTable("transaction_line_items", {
   id: uuid("id").defaultRandom().primaryKey(),
   transactionId: uuid("transaction_id")
     .notNull()
     .references(() => transactions.id, { onDelete: "cascade" }),
+
   productId: text("product_id").notNull(),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   bonus: decimal("bonus", { precision: 10, scale: 2 }),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -300,7 +318,7 @@ export const transactionLineItemsRelations = relations(transactionLineItems, ({ 
 }));
 
 // ============================================================================
-// LEGACY TABLE (kept for backward compatibility during migration)
+// LEGACY TABLE
 // ============================================================================
 export const userConfigs = pgTable(
   "user_configs",
@@ -324,24 +342,3 @@ export const userConfigs = pgTable(
 export const insertUserConfigSchema = createInsertSchema(userConfigs).omit({ updatedAt: true });
 export type InsertUserConfig = z.infer<typeof insertUserConfigSchema>;
 export type UserConfig = typeof userConfigs.$inferSelect;
-
-// ============================================================================
-// AUTH SCHEMAS (Zod)
-// ============================================================================
-export const loginSchema = z.object({
-  username: z.string().min(1, "Usuário é obrigatório"),
-  password: z.string().min(1, "Senha é obrigatória"),
-});
-export type LoginCredentials = z.infer<typeof loginSchema>;
-
-export const authResponseSchema = z.object({
-  token: z.string(),
-  user: z.object({
-    id: z.string(),
-    username: z.string(),
-    fullName: z.string(),
-    role: z.enum(["admin", "user"]),
-    companyId: z.string().nullable(),
-  }),
-});
-export type AuthResponse = z.infer<typeof authResponseSchema>;
