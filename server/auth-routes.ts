@@ -1,4 +1,3 @@
-// server/auth-routes.ts
 import express from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -10,9 +9,7 @@ import { eq } from "drizzle-orm";
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET not defined");
-}
+if (!JWT_SECRET) throw new Error("JWT_SECRET not defined");
 
 router.post("/login", async (req, res) => {
   try {
@@ -23,7 +20,6 @@ router.post("/login", async (req, res) => {
 
     const { username, password } = bodySchema.parse(req.body);
 
-    // ✅ Forma mais simples e previsível do Drizzle (evita surpresas no query API)
     const rows = await db
       .select()
       .from(users)
@@ -36,20 +32,35 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
-    // ✅ No schema: passwordHash (camelCase) mapeia para password_hash (DB)
-    const ok = await bcrypt.compare(password, user.passwordHash);
+    // 🔎 DEBUG (vai aparecer no Cloud Run Logs)
+    console.log("Login user found:", {
+      id: user.id,
+      username: user.username,
+      isActive: user.isActive,
+      hasPasswordHash: Boolean((user as any).passwordHash),
+      hasPassword_Hash: Boolean((user as any).password_Hash),
+      hasPassword_hash: Boolean((user as any).password_hash),
+    });
+
+    // ✅ pega o hash correto mesmo se o schema estiver desalinhado
+    const hash =
+      (user as any).passwordHash ??
+      (user as any).password_Hash ??
+      (user as any).password_hash;
+
+    if (!hash) {
+      console.error("Password hash missing from DB result. Check Drizzle schema mapping.");
+      return res.status(500).json({ error: "Server misconfigured (password hash mapping)" });
+    }
+
+    const ok = await bcrypt.compare(password, hash);
 
     if (!ok) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
     const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        companyId: user.companyId ?? null,
-      },
+      { id: user.id, username: user.username, role: user.role, companyId: user.companyId ?? null },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -65,7 +76,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("Login error (full):", err);
     return res.status(500).json({ error: "Login failed" });
   }
 });
